@@ -1,33 +1,44 @@
+import math
+
 def reward_function(params):
-    '''
-    Example of penalize steering, which helps mitigate zig-zag behaviors
-    '''
-    
-    # Read input parameters
-    distance_from_center = params['distance_from_center']
+    # Constants
     track_width = params['track_width']
-    steering = abs(params['steering_angle']) # Only need the absolute steering angle
+    distance_from_center = params['distance_from_center']
+    speed = params['speed']
+    progress = params['progress']
+    waypoints = params['waypoints']
+    closest_waypoints = params['closest_waypoints']
+    heading = params['heading']
 
-    # Calculate 3 marks that are farther and father away from the center line
-    marker_1 = 0.1 * track_width
-    marker_2 = 0.25 * track_width
-    marker_3 = 0.5 * track_width
-
-    # Give higher reward if the car is closer to center line and vice versa
-    if distance_from_center <= marker_1:
-        reward = 1
-    elif distance_from_center <= marker_2:
-        reward = 0.5
-    elif distance_from_center <= marker_3:
-        reward = 0.1
+    # Give higher reward for staying on the track and penalize for going off-track
+    if distance_from_center <= track_width / 2:
+        reward = 1.0
     else:
-        reward = 1e-3  # likely crashed/ close to off track
+        reward = 1e-3
 
-    # Steering penality threshold, change the number based on your action space setting
-    ABS_STEERING_THRESHOLD = 15
+    # Reward the car for higher speed
+    reward += speed
 
-    # Penalize reward if the car is steering too much
-    if steering > ABS_STEERING_THRESHOLD:
-        reward *= 0.8
+    # Calculate the direction of the previous waypoint
+    prev_point = waypoints[closest_waypoints[0]]
+    next_point = waypoints[closest_waypoints[1]]
+
+    track_direction = math.atan2(next_point[1] - prev_point[1], next_point[0] - prev_point[0])
+    track_direction = math.degrees(track_direction)
+
+    # Calculate the difference between the car's heading and the direction to the next waypoint
+    heading_diff = abs(track_direction - heading)
+
+    # Reward the car for heading alignment with the track
+    if heading_diff < 10.0:
+        reward += 0.5
+    else:
+        reward = 1e-3
+        # Calculate the progress percentage
+    track_len = len(waypoints)
+    progress_percentage = progress / (track_len - 1)
+
+    # Reward the car for making progress on the track
+    reward += progress_percentage * 10.0
 
     return float(reward)
